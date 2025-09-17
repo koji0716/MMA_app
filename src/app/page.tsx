@@ -1,5 +1,5 @@
-"use client";
-
 import HomePage from "./(home)/page";
 
-export default HomePage;
+export default function RootPage() {
+  return <HomePage />;
+}
