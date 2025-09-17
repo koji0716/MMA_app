@@ -44,6 +44,16 @@
 - Vercel Hobbyプランでのデプロイを想定。環境変数をセットすればSupabaseと連携します。
 - PWAアイコンは `public/icons` を差し替え、`manifest.json` を更新してください。
 
+## Vercel上でのデバッグAPIとログ確認方法
+
+- `main` ブランチには Vercel 上の挙動を診断するためのエンドポイント [`/api/debug_env`](./src/app/api/debug_env/route.ts) が用意されています。
+- ブラウザで `https://<デプロイURL>/api/debug_env` を開くと、実際に割り当てられている環境変数の一部や、Next.js が認識しているアプリ内ルート一覧が JSON で表示されます。
+- 同じリクエストを実行するとサーバー側でもログが出力されます。Vercel ダッシュボードで以下の手順を辿るとログを確認できます。
+  1. [Vercel ダッシュボード](https://vercel.com/)で対象プロジェクトを開き、左メニューの **Deployments** をクリック。
+  2. ログを確認したいデプロイ（プレビュー/本番どちらでも可）を選択すると詳細画面が開きます。
+  3. 画面上部の **View Logs** → **Functions** タブを選択し、`GET /api/debug_env` など対象リクエストのエントリを開くと `console.log` による出力内容が確認できます。
+  4. 同じ画面の **Build Logs** タブではビルド時のログも閲覧できます。ビルドが失敗している場合はこちらにエラーが表示されます。
+
 ## テスト/リンティング
 
 - `npm run lint` : Next.js + ESLintのチェック
