@@ -1,5 +1,5 @@
 import { get, set } from "idb-keyval";
-import { v4 as uuid } from "uuid";
+import { v4 as uuidv4 } from "uuid";
 import dayjs from "dayjs";
 import { zSessionQuick } from "@/lib/schema/zod";
 
@@ -29,7 +29,7 @@ export async function addSession(input: unknown) {
   assertClient();
   const parsed = zSessionQuick.parse(input);
   const record: SessionRecord = {
-    id: uuid(),
+    id: uuidv4(),
     createdAt: new Date().toISOString(),
     syncState: "pending",
     ...parsed,
