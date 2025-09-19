@@ -67,6 +67,12 @@ export default function HomePage() {
 
   return (
     <div className="space-y-4 p-4 md:p-6">
+      <div className="flex justify-end">
+        <Button asChild variant="outline">
+          <Link href="/log">ログを見る</Link>
+        </Button>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>今日の重点3つ</CardTitle>
