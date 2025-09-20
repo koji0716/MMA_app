@@ -34,9 +34,48 @@
 3. Supabase同期を有効化する場合は `.env.local` などに以下を設定
    ```env
    NEXT_PUBLIC_MODE=supabase
-   NEXT_PUBLIC_SUPABASE_URL=... 
+   NEXT_PUBLIC_SUPABASE_URL=...
    NEXT_PUBLIC_SUPABASE_ANON_KEY=...
    ```
+
+### Supabaseテーブルの準備
+
+アプリから同期されるレコードは `public.sessions` テーブルに保存されます。まだテーブルを作成していない場
+合は、Supabaseダッシュボードの **SQL Editor** で次のスクリプトを実行してください。
+
+```sql
+create table if not exists public.sessions (
+  id uuid primary key,
+  date date not null,
+  start_time time without time zone,
+  type text not null,
+  duration_min integer not null,
+  tags text[] not null default array[]::text[],
+  memo text,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade
+);
+
+alter table public.sessions enable row level security;
+
+create policy "Users can view their own sessions"
+  on public.sessions for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert their own sessions"
+  on public.sessions for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own sessions"
+  on public.sessions for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete their own sessions"
+  on public.sessions for delete
+  using (auth.uid() = user_id);
+```
+
+上記のSQLを実行すると、ブラウザで `anon` キーを用いてアクセスした場合でも、本人のセッションデータのみを挿入・閲覧・更新・削除できるようになります。
 
 ## ビルド & デプロイ
 

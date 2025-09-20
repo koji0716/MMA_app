@@ -6,6 +6,28 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const supabase = typeof window !== "undefined" && url && anonKey ? createClient(url, anonKey) : null;
 
+type PostgrestError = {
+  code: string | null;
+  details: string | null;
+  hint: string | null;
+  message: string;
+};
+
+function logSupabaseError(operation: string, error: unknown) {
+  const baseLabel = `Supabase ${operation} error`;
+  if (error && typeof error === "object" && "code" in error) {
+    const typed = error as PostgrestError;
+    console.error(baseLabel, typed);
+    if (typed.code === "PGRST205") {
+      console.error(
+        "The sessions table is missing in Supabase. Run the setup SQL from the README to create public.sessions before retrying."
+      );
+    }
+  } else {
+    console.error(baseLabel, error);
+  }
+}
+
 type LocalSession = Awaited<ReturnType<typeof Local.addSession>>;
 
 function toRow(session: LocalSession) {
@@ -25,9 +47,13 @@ export async function addSession(input: unknown) {
   if (!supabase) return record;
   try {
     const { error } = await supabase.from("sessions").upsert(toRow(record), { onConflict: "id" });
-    if (!error) await Local.markSynced(record.id);
+    if (error) {
+      logSupabaseError("addSession", error);
+      return record;
+    }
+    await Local.markSynced(record.id);
   } catch (error) {
-    console.error("Supabase addSession error", error);
+    logSupabaseError("addSession", error);
   }
   return record;
 }
@@ -45,9 +71,13 @@ export async function updateSession(id: string, patch: Partial<LocalSession>) {
   if (!updated || !supabase) return updated;
   try {
     const { error } = await supabase.from("sessions").upsert(toRow(updated), { onConflict: "id" });
-    if (!error) await Local.markSynced(id);
+    if (error) {
+      logSupabaseError("updateSession", error);
+      return updated;
+    }
+    await Local.markSynced(id);
   } catch (error) {
-    console.error("Supabase updateSession error", error);
+    logSupabaseError("updateSession", error);
   }
   return updated;
 }
@@ -56,9 +86,12 @@ export async function deleteSession(id: string) {
   await Local.deleteSession(id);
   if (!supabase) return;
   try {
-    await supabase.from("sessions").delete().eq("id", id);
+    const { error } = await supabase.from("sessions").delete().eq("id", id);
+    if (error) {
+      logSupabaseError("deleteSession", error);
+    }
   } catch (error) {
-    console.error("Supabase deleteSession error", error);
+    logSupabaseError("deleteSession", error);
   }
 }
 
@@ -68,9 +101,13 @@ export async function retrySyncAll() {
   for (const session of pending) {
     try {
       const { error } = await supabase.from("sessions").upsert(toRow(session as LocalSession), { onConflict: "id" });
-      if (!error) await Local.markSynced(session.id);
+      if (error) {
+        logSupabaseError("retrySync", error);
+        continue;
+      }
+      await Local.markSynced(session.id);
     } catch (error) {
-      console.error("Supabase retrySync error", error);
+      logSupabaseError("retrySync", error);
     }
   }
 }
