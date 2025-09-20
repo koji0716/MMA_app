@@ -25,7 +25,11 @@ export async function addSession(input: unknown) {
   if (!supabase) return record;
   try {
     const { error } = await supabase.from("sessions").upsert(toRow(record), { onConflict: "id" });
-    if (!error) await Local.markSynced(record.id);
+    if (error) {
+      console.error("Supabase addSession error", error);
+      return record;
+    }
+    await Local.markSynced(record.id);
   } catch (error) {
     console.error("Supabase addSession error", error);
   }
@@ -45,7 +49,11 @@ export async function updateSession(id: string, patch: Partial<LocalSession>) {
   if (!updated || !supabase) return updated;
   try {
     const { error } = await supabase.from("sessions").upsert(toRow(updated), { onConflict: "id" });
-    if (!error) await Local.markSynced(id);
+    if (error) {
+      console.error("Supabase updateSession error", error);
+      return updated;
+    }
+    await Local.markSynced(id);
   } catch (error) {
     console.error("Supabase updateSession error", error);
   }
@@ -56,7 +64,10 @@ export async function deleteSession(id: string) {
   await Local.deleteSession(id);
   if (!supabase) return;
   try {
-    await supabase.from("sessions").delete().eq("id", id);
+    const { error } = await supabase.from("sessions").delete().eq("id", id);
+    if (error) {
+      console.error("Supabase deleteSession error", error);
+    }
   } catch (error) {
     console.error("Supabase deleteSession error", error);
   }
@@ -68,7 +79,11 @@ export async function retrySyncAll() {
   for (const session of pending) {
     try {
       const { error } = await supabase.from("sessions").upsert(toRow(session as LocalSession), { onConflict: "id" });
-      if (!error) await Local.markSynced(session.id);
+      if (error) {
+        console.error("Supabase retrySync error", error);
+        continue;
+      }
+      await Local.markSynced(session.id);
     } catch (error) {
       console.error("Supabase retrySync error", error);
     }
