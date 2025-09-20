@@ -6,6 +6,9 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const supabase = typeof window !== "undefined" && url && anonKey ? createClient(url, anonKey) : null;
 
+let cachedUserId: string | undefined;
+let fetchingUserId: Promise<string | null> | null = null;
+
 type PostgrestError = {
   code: string | null;
   details: string | null;
@@ -28,9 +31,13 @@ function logSupabaseError(operation: string, error: unknown) {
   }
 }
 
+function logSupabaseAuthError(operation: string, error: unknown) {
+  console.error(`Supabase auth ${operation} error`, error);
+}
+
 type LocalSession = Awaited<ReturnType<typeof Local.addSession>>;
 
-function toRow(session: LocalSession) {
+function toRow(session: LocalSession, userId?: string | null) {
   return {
     id: session.id,
     date: session.date,
@@ -39,14 +46,62 @@ function toRow(session: LocalSession) {
     duration_min: session.durationMin,
     tags: session.tags ?? [],
     memo: session.memo ?? null,
+    ...(userId ? { user_id: userId } : {}),
   };
+}
+
+async function ensureSupabaseUserId() {
+  if (!supabase) return null;
+  if (cachedUserId) return cachedUserId;
+  if (!fetchingUserId) {
+    fetchingUserId = (async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          logSupabaseAuthError("getSession", error);
+        }
+        const existingUserId = data.session?.user?.id;
+        if (existingUserId) {
+          cachedUserId = existingUserId;
+          return existingUserId;
+        }
+        const { data: signInData, error: signInError } = await supabase.auth.signInAnonymously();
+        if (signInError) {
+          logSupabaseAuthError("signInAnonymously", signInError);
+          return null;
+        }
+        const newUserId = signInData.session?.user?.id ?? null;
+        if (newUserId) {
+          cachedUserId = newUserId;
+        }
+        return newUserId;
+      } catch (error) {
+        logSupabaseAuthError("ensureUser", error);
+        return null;
+      }
+    })();
+  }
+  const userId = await fetchingUserId;
+  fetchingUserId = null;
+  if (!cachedUserId && userId) {
+    cachedUserId = userId;
+  }
+  if (!userId) {
+    cachedUserId = undefined;
+  }
+  return userId;
 }
 
 export async function addSession(input: unknown) {
   const record = await Local.addSession(input);
   if (!supabase) return record;
   try {
-    const { error } = await supabase.from("sessions").upsert(toRow(record), { onConflict: "id" });
+    const userId = await ensureSupabaseUserId();
+    if (!userId) {
+      console.warn("Supabase addSession skipped because no authenticated user is available yet.");
+      return record;
+    }
+    const { error } = await supabase.from("sessions").upsert(toRow(record, userId), { onConflict: "id" });
     if (error) {
       logSupabaseError("addSession", error);
       return record;
@@ -70,7 +125,12 @@ export async function updateSession(id: string, patch: Partial<LocalSession>) {
   const updated = await Local.updateSession(id, patch as any);
   if (!updated || !supabase) return updated;
   try {
-    const { error } = await supabase.from("sessions").upsert(toRow(updated), { onConflict: "id" });
+    const userId = await ensureSupabaseUserId();
+    if (!userId) {
+      console.warn("Supabase updateSession skipped because no authenticated user is available yet.");
+      return updated;
+    }
+    const { error } = await supabase.from("sessions").upsert(toRow(updated, userId), { onConflict: "id" });
     if (error) {
       logSupabaseError("updateSession", error);
       return updated;
@@ -86,6 +146,11 @@ export async function deleteSession(id: string) {
   await Local.deleteSession(id);
   if (!supabase) return;
   try {
+    const userId = await ensureSupabaseUserId();
+    if (!userId) {
+      console.warn("Supabase deleteSession skipped because no authenticated user is available yet.");
+      return;
+    }
     const { error } = await supabase.from("sessions").delete().eq("id", id);
     if (error) {
       logSupabaseError("deleteSession", error);
@@ -97,10 +162,17 @@ export async function deleteSession(id: string) {
 
 export async function retrySyncAll() {
   if (!supabase) return;
+  const userId = await ensureSupabaseUserId();
+  if (!userId) {
+    console.warn("Supabase retrySyncAll skipped because no authenticated user is available yet.");
+    return;
+  }
   const pending = await Local.pendingSessions();
   for (const session of pending) {
     try {
-      const { error } = await supabase.from("sessions").upsert(toRow(session as LocalSession), { onConflict: "id" });
+      const { error } = await supabase
+        .from("sessions")
+        .upsert(toRow(session as LocalSession, userId), { onConflict: "id" });
       if (error) {
         logSupabaseError("retrySync", error);
         continue;
