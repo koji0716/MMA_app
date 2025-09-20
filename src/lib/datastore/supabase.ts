@@ -36,6 +36,10 @@ export async function listSessions(params?: { from?: string; to?: string }) {
   return Local.listSessions(params);
 }
 
+export async function getSession(id: string) {
+  return Local.getSession(id);
+}
+
 export async function updateSession(id: string, patch: Partial<LocalSession>) {
   const updated = await Local.updateSession(id, patch as any);
   if (!updated || !supabase) return updated;

@@ -55,6 +55,12 @@ export async function listSessions(params?: { from?: string; to?: string }) {
   });
 }
 
+export async function getSession(id: string) {
+  assertClient();
+  const list: SessionRecord[] = ((await get(KEY_SESSIONS)) as SessionRecord[] | undefined) ?? [];
+  return list.find((session) => session.id === id) ?? null;
+}
+
 export async function updateSession(id: string, patch: Partial<SessionRecord>) {
   assertClient();
   const list: SessionRecord[] = ((await get(KEY_SESSIONS)) as SessionRecord[] | undefined) ?? [];
