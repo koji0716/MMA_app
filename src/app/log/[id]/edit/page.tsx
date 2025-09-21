@@ -26,7 +26,7 @@ export default function EditLogPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [logSession, setLogSession] = useState<Session | null>(null);
 
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
@@ -34,9 +34,13 @@ export default function EditLogPage() {
   const [durationMin, setDurationMin] = useState<number>(60);
   const [tags, setTags] = useState("");
   const [memo, setMemo] = useState("");
-  const { session, loading: authLoading, supabaseAvailable } = useAuth();
+  const {
+    session: authSession,
+    loading: authLoading,
+    supabaseAvailable,
+  } = useAuth();
 
-  const loginRequired = supabaseAvailable && !authLoading && !session;
+  const loginRequired = supabaseAvailable && !authLoading && !authSession;
 
   useEffect(() => {
     let active = true;
@@ -53,7 +57,7 @@ export default function EditLogPage() {
           setError("ログが見つかりませんでした");
           return;
         }
-        setSession(data);
+        setLogSession(data);
         setError(null);
         setDate(data.date);
         setStartTime(data.startTime ?? "");
@@ -80,9 +84,9 @@ export default function EditLogPage() {
   }, [sessionId]);
 
   const formattedCreatedAt = useMemo(() => {
-    if (!session?.createdAt) return null;
-    return dayjs(session.createdAt).format("YYYY/MM/DD HH:mm");
-  }, [session?.createdAt]);
+    if (!logSession?.createdAt) return null;
+    return dayjs(logSession.createdAt).format("YYYY/MM/DD HH:mm");
+  }, [logSession?.createdAt]);
 
   async function handleSubmit() {
     if (!sessionId || Array.isArray(sessionId)) return;
