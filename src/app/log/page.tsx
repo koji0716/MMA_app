@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DS } from "@/lib/datastore";
+import { useAuth } from "@/components/providers/auth-provider";
 
 const TYPE_LABELS: Record<string, string> = {
   striking: "打撃",
@@ -22,6 +23,7 @@ export default function LogListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const { session, loading: authLoading, supabaseAvailable } = useAuth();
 
   useEffect(() => {
     let active = true;
@@ -98,6 +100,14 @@ export default function LogListPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
+      {supabaseAvailable && !authLoading && !session ? (
+        <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+          <p>Supabase と同期するにはログインが必要です。ログイン後に自動的に再同期が実行されます。</p>
+          <Button asChild size="sm" variant="outline" className="text-xs">
+            <Link href="/auth">ログインページを開く</Link>
+          </Button>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">練習ログ</h1>
         <div className="flex items-center gap-2">
