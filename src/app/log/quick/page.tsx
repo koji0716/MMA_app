@@ -1,6 +1,7 @@
 "use client";
 
 import dayjs from "dayjs";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DS } from "@/lib/datastore";
+import { useAuth } from "@/components/providers/auth-provider";
 
 const TYPES = ["striking", "wrestling", "grappling", "tactics"] as const;
 
@@ -24,6 +26,9 @@ export default function QuickLogPage() {
   const [tags, setTags] = useState("");
   const [memo, setMemo] = useState("");
   const [saving, setSaving] = useState(false);
+  const { session, loading: authLoading, supabaseAvailable } = useAuth();
+
+  const loginRequired = supabaseAvailable && !authLoading && !session;
 
   async function onSubmit() {
     setSaving(true);
@@ -57,6 +62,14 @@ export default function QuickLogPage() {
           <CardTitle>クイック記録</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {loginRequired ? (
+            <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+              <p>ログインするとこの記録が Supabase に同期されます。</p>
+              <Button asChild size="sm" variant="outline" className="text-xs">
+                <Link href="/auth">ログインページを開く</Link>
+              </Button>
+            </div>
+          ) : null}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <Label>日付</Label>

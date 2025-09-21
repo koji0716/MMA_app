@@ -1,10 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import * as Local from "./local";
-
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-const supabase = typeof window !== "undefined" && url && anonKey ? createClient(url, anonKey) : null;
+import { supabase } from "../supabase/client";
 
 let cachedUserId: string | undefined;
 let fetchingUserId: Promise<string | null> | null = null;
@@ -60,21 +55,15 @@ async function ensureSupabaseUserId() {
         if (error) {
           logSupabaseAuthError("getSession", error);
         }
-        const existingUserId = data.session?.user?.id;
+        const existingUserId = data.session?.user?.id ?? null;
         if (existingUserId) {
           cachedUserId = existingUserId;
           return existingUserId;
         }
-        const { data: signInData, error: signInError } = await supabase.auth.signInAnonymously();
-        if (signInError) {
-          logSupabaseAuthError("signInAnonymously", signInError);
-          return null;
-        }
-        const newUserId = signInData.session?.user?.id ?? null;
-        if (newUserId) {
-          cachedUserId = newUserId;
-        }
-        return newUserId;
+        console.warn(
+          "Supabase session is not available. Log in with your email address and password to enable syncing."
+        );
+        return null;
       } catch (error) {
         logSupabaseAuthError("ensureUser", error);
         return null;
@@ -98,7 +87,9 @@ export async function addSession(input: unknown) {
   try {
     const userId = await ensureSupabaseUserId();
     if (!userId) {
-      console.warn("Supabase addSession skipped because no authenticated user is available yet.");
+      console.warn(
+        "Supabase addSession skipped because no authenticated user is available yet. Visit /auth to sign in before syncing."
+      );
       return record;
     }
     const { error } = await supabase.from("sessions").upsert(toRow(record, userId), { onConflict: "id" });
@@ -127,7 +118,9 @@ export async function updateSession(id: string, patch: Partial<LocalSession>) {
   try {
     const userId = await ensureSupabaseUserId();
     if (!userId) {
-      console.warn("Supabase updateSession skipped because no authenticated user is available yet.");
+      console.warn(
+        "Supabase updateSession skipped because no authenticated user is available yet. Visit /auth to sign in before syncing."
+      );
       return updated;
     }
     const { error } = await supabase.from("sessions").upsert(toRow(updated, userId), { onConflict: "id" });
@@ -148,7 +141,9 @@ export async function deleteSession(id: string) {
   try {
     const userId = await ensureSupabaseUserId();
     if (!userId) {
-      console.warn("Supabase deleteSession skipped because no authenticated user is available yet.");
+      console.warn(
+        "Supabase deleteSession skipped because no authenticated user is available yet. Visit /auth to sign in before syncing."
+      );
       return;
     }
     const { error } = await supabase.from("sessions").delete().eq("id", id);
@@ -164,7 +159,9 @@ export async function retrySyncAll() {
   if (!supabase) return;
   const userId = await ensureSupabaseUserId();
   if (!userId) {
-    console.warn("Supabase retrySyncAll skipped because no authenticated user is available yet.");
+    console.warn(
+      "Supabase retrySyncAll skipped because no authenticated user is available yet. Visit /auth to sign in before syncing."
+    );
     return;
   }
   const pending = await Local.pendingSessions();
@@ -182,6 +179,12 @@ export async function retrySyncAll() {
       logSupabaseError("retrySync", error);
     }
   }
+}
+
+if (supabase) {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    cachedUserId = session?.user?.id ?? undefined;
+  });
 }
 
 if (typeof window !== "undefined") {

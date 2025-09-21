@@ -26,3 +26,7 @@ export const CardTitle = ({ className, ...props }: React.HTMLAttributes<HTMLHead
 export const CardContent = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div className={cn("p-4 pt-3", className)} {...props} />
 );
+
+export const CardFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("flex items-center p-4 pt-0", className)} {...props} />
+);

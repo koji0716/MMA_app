@@ -1,6 +1,7 @@
 "use client";
 
 import dayjs from "dayjs";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DS } from "@/lib/datastore";
+import { useAuth } from "@/components/providers/auth-provider";
 
 type Session = Awaited<ReturnType<typeof DS.getSession>>;
 
@@ -24,7 +26,7 @@ export default function EditLogPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [logSession, setLogSession] = useState<Session | null>(null);
 
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
@@ -32,6 +34,13 @@ export default function EditLogPage() {
   const [durationMin, setDurationMin] = useState<number>(60);
   const [tags, setTags] = useState("");
   const [memo, setMemo] = useState("");
+  const {
+    session: authSession,
+    loading: authLoading,
+    supabaseAvailable,
+  } = useAuth();
+
+  const loginRequired = supabaseAvailable && !authLoading && !authSession;
 
   useEffect(() => {
     let active = true;
@@ -48,7 +57,7 @@ export default function EditLogPage() {
           setError("ログが見つかりませんでした");
           return;
         }
-        setSession(data);
+        setLogSession(data);
         setError(null);
         setDate(data.date);
         setStartTime(data.startTime ?? "");
@@ -75,9 +84,9 @@ export default function EditLogPage() {
   }, [sessionId]);
 
   const formattedCreatedAt = useMemo(() => {
-    if (!session?.createdAt) return null;
-    return dayjs(session.createdAt).format("YYYY/MM/DD HH:mm");
-  }, [session?.createdAt]);
+    if (!logSession?.createdAt) return null;
+    return dayjs(logSession.createdAt).format("YYYY/MM/DD HH:mm");
+  }, [logSession?.createdAt]);
 
   async function handleSubmit() {
     if (!sessionId || Array.isArray(sessionId)) return;
@@ -123,6 +132,14 @@ export default function EditLogPage() {
             </div>
           ) : (
             <>
+              {loginRequired ? (
+                <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+                  <p>ログインするとこの編集内容が Supabase に同期されます。</p>
+                  <Button asChild size="sm" variant="outline" className="text-xs">
+                    <Link href="/auth">ログインページを開く</Link>
+                  </Button>
+                </div>
+              ) : null}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="date">日付</Label>
