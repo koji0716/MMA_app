@@ -21,12 +21,27 @@ export default function AuthCallbackPage() {
 
     let timeout: ReturnType<typeof setTimeout> | undefined;
 
+    const currentUrl = new URL(window.location.href);
+    const errorDescription = currentUrl.searchParams.get("error_description");
+    if (errorDescription) {
+      setStatus("error");
+      setError(errorDescription);
+      return;
+    }
+
+    const code = currentUrl.searchParams.get("code");
+    if (!code) {
+      setStatus("error");
+      setError("リダイレクト URL に認証コードが含まれていません。");
+      return;
+    }
+
     supabase.auth
-      .getSessionFromUrl({ storeSession: true })
-      .then(({ error: urlError }) => {
-        if (urlError) {
+      .exchangeCodeForSession(code)
+      .then(({ error: exchangeError }) => {
+        if (exchangeError) {
           setStatus("error");
-          setError(urlError.message);
+          setError(exchangeError.message);
           return;
         }
         setStatus("success");
@@ -35,7 +50,7 @@ export default function AuthCallbackPage() {
         }, 1200);
       })
       .catch((unknownError) => {
-        console.error("Supabase auth getSessionFromUrl error", unknownError);
+        console.error("Supabase auth exchangeCodeForSession error", unknownError);
         setStatus("error");
         setError("メール確認の処理に失敗しました。");
       });
