@@ -7,7 +7,7 @@ export type SyncState = "pending" | "synced" | "error";
 
 const KEY_SESSIONS = "sessions";
 
-type SessionRecord = {
+export type SessionRecord = {
   id: string;
   createdAt: string;
   syncState: SyncState;
@@ -76,6 +76,11 @@ export async function deleteSession(id: string) {
   const list: SessionRecord[] = ((await get(KEY_SESSIONS)) as SessionRecord[] | undefined) ?? [];
   const next = list.filter((session) => session.id !== id);
   await set(KEY_SESSIONS, next);
+}
+
+export async function replaceAllSessions(records: SessionRecord[]) {
+  assertClient();
+  await set(KEY_SESSIONS, records);
 }
 
 export async function markSynced(id: string) {

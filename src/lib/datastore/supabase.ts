@@ -1,4 +1,5 @@
 import * as Local from "./local";
+import type { SessionRecord } from "./local";
 import { supabase } from "../supabase/client";
 
 let cachedUserId: string | undefined;
@@ -104,8 +105,63 @@ export async function addSession(input: unknown) {
   return record;
 }
 
+type SupabaseSessionRow = {
+  id: string;
+  date: string;
+  start_time: string | null;
+  type: string;
+  duration_min: number;
+  tags: string[] | null;
+  memo: string | null;
+};
+
+function fromRow(row: SupabaseSessionRow, base?: SessionRecord): SessionRecord {
+  return {
+    id: row.id,
+    createdAt: base?.createdAt ?? new Date().toISOString(),
+    syncState: "synced",
+    date: row.date,
+    startTime: row.start_time ?? undefined,
+    type: row.type,
+    durationMin: row.duration_min,
+    tags: row.tags ?? [],
+    memo: row.memo ?? undefined,
+  };
+}
+
 export async function listSessions(params?: { from?: string; to?: string }) {
-  return Local.listSessions(params);
+  const fallback = await Local.listSessions(params);
+  if (!supabase) return fallback;
+  try {
+    const userId = await ensureSupabaseUserId();
+    if (!userId) return fallback;
+    const { data, error } = await supabase
+      .from<SupabaseSessionRow>("sessions")
+      .select("id,date,start_time,type,duration_min,tags,memo");
+    if (error) {
+      logSupabaseError("listSessions", error);
+      return fallback;
+    }
+    if (!data) return fallback;
+
+    const localAll = params ? await Local.listSessions() : fallback;
+    const localMap = new Map(localAll.map((session) => [session.id, session]));
+    const pending = localAll.filter((session) => session.syncState !== "synced");
+    const pendingIds = new Set(pending.map((session) => session.id));
+
+    const merged: SessionRecord[] = [...pending];
+    for (const row of data) {
+      if (pendingIds.has(row.id)) continue;
+      const base = localMap.get(row.id);
+      merged.push(fromRow(row, base));
+    }
+
+    await Local.replaceAllSessions(merged);
+    return Local.listSessions(params);
+  } catch (error) {
+    logSupabaseError("listSessions", error);
+    return fallback;
+  }
 }
 
 export async function getSession(id: string) {

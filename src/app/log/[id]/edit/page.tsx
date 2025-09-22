@@ -25,6 +25,7 @@ export default function EditLogPage() {
   const sessionId = params?.id;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logSession, setLogSession] = useState<Session | null>(null);
 
@@ -111,6 +112,23 @@ export default function EditLogPage() {
       alert("更新に失敗しました");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!sessionId || Array.isArray(sessionId)) return;
+    if (!window.confirm("この練習ログを削除しますか？")) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await DS.deleteSession(sessionId);
+      router.push("/log");
+    } catch (err) {
+      console.error(err);
+      alert("削除に失敗しました");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -211,12 +229,21 @@ export default function EditLogPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button disabled={saving} onClick={handleSubmit}>
-                  更新
-                </Button>
-                <Button variant="outline" onClick={() => router.back()}>
-                  戻る
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                  <Button disabled={saving} onClick={handleSubmit}>
+                    更新
+                  </Button>
+                  <Button variant="outline" onClick={() => router.back()}>
+                    戻る
+                  </Button>
+                </div>
+                <Button
+                  variant="destructive"
+                  disabled={deleting}
+                  onClick={handleDelete}
+                >
+                  {deleting ? "削除中..." : "このログを削除"}
                 </Button>
               </div>
             </>
