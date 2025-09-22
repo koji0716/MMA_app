@@ -136,7 +136,7 @@ export async function listSessions(params?: { from?: string; to?: string }) {
     const userId = await ensureSupabaseUserId();
     if (!userId) return fallback;
     const { data, error } = await supabase
-      .from<SupabaseSessionRow>("sessions")
+      .from("sessions")
       .select("id,date,start_time,type,duration_min,tags,memo");
     if (error) {
       logSupabaseError("listSessions", error);
@@ -144,13 +144,15 @@ export async function listSessions(params?: { from?: string; to?: string }) {
     }
     if (!data) return fallback;
 
+    const rows = data as unknown as SupabaseSessionRow[];
+
     const localAll = params ? await Local.listSessions() : fallback;
     const localMap = new Map(localAll.map((session) => [session.id, session]));
     const pending = localAll.filter((session) => session.syncState !== "synced");
     const pendingIds = new Set(pending.map((session) => session.id));
 
     const merged: SessionRecord[] = [...pending];
-    for (const row of data) {
+    for (const row of rows) {
       if (pendingIds.has(row.id)) continue;
       const base = localMap.get(row.id);
       merged.push(fromRow(row, base));
