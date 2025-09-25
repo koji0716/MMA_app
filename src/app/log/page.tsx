@@ -114,6 +114,9 @@ export default function LogListPage() {
           <Button variant="outline" onClick={handleRefresh} disabled={loading}>
             再読み込み
           </Button>
+          <Button variant="outline" asChild>
+            <Link href="/log/tag-analysis">タグ分析</Link>
+          </Button>
           <Button asChild>
             <Link href="/log/quick">＋ ログする</Link>
           </Button>

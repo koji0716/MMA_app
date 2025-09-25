@@ -6,12 +6,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DS } from "@/lib/datastore";
 import { useAuth } from "@/components/providers/auth-provider";
+import { Input } from "@/components/ui/input";
+import { TagInputWithSuggestions } from "@/components/log/tag-input-with-suggestions";
 
 type Session = Awaited<ReturnType<typeof DS.getSession>>;
 
@@ -211,11 +212,11 @@ export default function EditLogPage() {
 
               <div>
                 <Label htmlFor="tags">技術タグ（カンマ区切り / 最大3）</Label>
-                <Input
+                <TagInputWithSuggestions
                   id="tags"
                   placeholder="double_leg, knee_slide_pass"
                   value={tags}
-                  onChange={(event) => setTags(event.target.value)}
+                  onValueChange={setTags}
                 />
               </div>
 
