@@ -6,12 +6,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DS } from "@/lib/datastore";
 import { useAuth } from "@/components/providers/auth-provider";
+import { Input } from "@/components/ui/input";
+import { TagInputWithSuggestions } from "@/components/log/tag-input-with-suggestions";
 
 const TYPES = ["striking", "wrestling", "grappling", "tactics"] as const;
 
@@ -108,10 +109,10 @@ export default function QuickLogPage() {
 
           <div>
             <Label>技術タグ（カンマ区切り / 最大3）</Label>
-            <Input
+            <TagInputWithSuggestions
               placeholder="double_leg, knee_slide_pass"
               value={tags}
-              onChange={(event) => setTags(event.target.value)}
+              onValueChange={setTags}
             />
           </div>
 
