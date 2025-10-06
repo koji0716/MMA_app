@@ -6,6 +6,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectItem } from "@/components/ui/select";
 import { DS } from "@/lib/datastore";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -27,6 +30,8 @@ export default function TagAnalysisPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [tagQuery, setTagQuery] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -52,9 +57,16 @@ export default function TagAnalysisPage() {
     };
   }, []);
 
+  const filteredSessions = useMemo(() => {
+    if (typeFilter === "all") {
+      return sessions;
+    }
+    return sessions.filter((session) => session.type === typeFilter);
+  }, [sessions, typeFilter]);
+
   const tagEntries = useMemo(() => {
     const map = new Map<string, Session[]>();
-    sessions.forEach((session) => {
+    filteredSessions.forEach((session) => {
       session.tags?.forEach((tag) => {
         const normalized = tag.trim();
         if (!normalized) return;
@@ -84,9 +96,18 @@ export default function TagAnalysisPage() {
         }
         return a.tag.localeCompare(b.tag);
       });
-  }, [sessions]);
+  }, [filteredSessions]);
+
+  const filteredEntries = useMemo(() => {
+    const query = tagQuery.trim().toLowerCase();
+    if (!query) {
+      return tagEntries;
+    }
+    return tagEntries.filter((entry) => entry.tag.toLowerCase().includes(query));
+  }, [tagEntries, tagQuery]);
 
   const numberFormatter = useMemo(() => new Intl.NumberFormat("ja-JP"), []);
+  const filtersApplied = typeFilter !== "all" || tagQuery.trim() !== "";
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4 md:p-6">
@@ -114,18 +135,42 @@ export default function TagAnalysisPage() {
             タグの利用回数順に並べています。
           </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2 md:items-end">
+            <div className="space-y-1">
+              <Label htmlFor="type-filter">種別で絞り込む</Label>
+              <Select id="type-filter" value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectItem value="all">すべて</SelectItem>
+                {Object.entries(TYPE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="tag-search">タグ名で検索</Label>
+              <Input
+                id="tag-search"
+                placeholder="例: ガード"
+                value={tagQuery}
+                onChange={(event) => setTagQuery(event.target.value)}
+              />
+            </div>
+          </div>
           {loading ? (
             <div className="text-sm text-muted-foreground">読み込み中…</div>
           ) : error ? (
             <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
               {error}
             </div>
-          ) : tagEntries.length === 0 ? (
-            <div className="text-sm text-muted-foreground">まだタグ付きの練習ログがありません。</div>
+          ) : filteredEntries.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              {filtersApplied ? "条件に合致するタグがありません。" : "まだタグ付きの練習ログがありません。"}
+            </div>
           ) : (
             <div className="space-y-4">
-              {tagEntries.map((entry) => (
+              {filteredEntries.map((entry) => (
                 <TagCard key={entry.tag} entry={entry} numberFormatter={numberFormatter} />
               ))}
             </div>
