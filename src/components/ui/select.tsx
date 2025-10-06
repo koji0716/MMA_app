@@ -3,7 +3,8 @@
 import * as React from "react";
 import { cn } from "@/lib/util/cn";
 
-interface SelectRootProps {
+interface SelectRootProps
+  extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "value" | "defaultValue" | "onChange"> {
   value?: string;
   defaultValue?: string;
   onValueChange?: (value: string) => void;
@@ -25,7 +26,7 @@ function collectItems(children: React.ReactNode, items: React.ReactElement<Selec
   });
 }
 
-export function Select({ value, defaultValue, onValueChange, className, children }: SelectRootProps) {
+export function Select({ value, defaultValue, onValueChange, className, children, ...rest }: SelectRootProps) {
   const items: React.ReactElement<SelectItemProps>[] = [];
   collectItems(children, items);
   const resolvedValue = value ?? defaultValue ?? items[0]?.props.value ?? "";
@@ -38,6 +39,7 @@ export function Select({ value, defaultValue, onValueChange, className, children
       )}
       value={value ?? resolvedValue}
       onChange={(event) => onValueChange?.(event.target.value)}
+      {...rest}
     >
       {items.map((item, idx) => (
         <option key={idx} value={item.props.value} disabled={item.props.disabled}>
