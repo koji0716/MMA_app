@@ -75,9 +75,41 @@ export default function HomePage() {
 
   const calendarDays = useMemo(() => createCalendarDays(currentMonth), [currentMonth]);
 
-  const selectedSessions = sessionsByDate.get(selectedDate) ?? [];
+  const selectedSessions = useMemo(
+    () => sessionsByDate.get(selectedDate) ?? [],
+    [sessionsByDate, selectedDate],
+  );
   const selectedDayLabel = dayjs(selectedDate).format("YYYY年M月D日");
   const monthLabel = currentMonth.format("YYYY年M月");
+  useEffect(() => {
+    const tagCounts = new Map<string, number>();
+    selectedSessions.forEach((session) => {
+      session.tags?.forEach((tag) => {
+        const normalized = typeof tag === "string" ? tag.trim() : "";
+        if (!normalized) return;
+        tagCounts.set(normalized, (tagCounts.get(normalized) ?? 0) + 1);
+      });
+    });
+
+    const topTags = Array.from(tagCounts.entries())
+      .sort((a, b) => {
+        if (a[1] === b[1]) {
+          return a[0].localeCompare(b[0]);
+        }
+        return b[1] - a[1];
+      })
+      .slice(0, 3);
+
+    for (let index = 0; index < 3; index += 1) {
+      const entry = topTags[index];
+      if (entry) {
+        const [tag, count] = entry;
+        console.info(`[Reflection] ${selectedDayLabel} #${tag}: ${count}件`);
+      } else {
+        console.info(`[Reflection] ${selectedDayLabel} #タグ${index + 1}: 記録なし`);
+      }
+    }
+  }, [selectedDayLabel, selectedSessions]);
   const monthlyTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     sessions.forEach((session) => {
