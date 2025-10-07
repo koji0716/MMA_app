@@ -82,10 +82,12 @@ export default function HomePage() {
   );
   const selectedDayLabel = dayjs(selectedDate).format("YYYY年M月D日");
   const monthLabel = currentMonth.format("YYYY年M月");
+  const reflectionScopeLabel = "全期間";
+
   const reflectionEntries = useMemo(() => {
     const tagSessions = new Map<string, Session[]>();
 
-    selectedSessions.forEach((session) => {
+    sessions.forEach((session) => {
       session.tags?.forEach((tag) => {
         const normalized = typeof tag === "string" ? tag.trim() : "";
         if (!normalized) return;
@@ -131,25 +133,25 @@ export default function HomePage() {
         hasData: true,
       } as const;
     });
-  }, [selectedSessions]);
+  }, [sessions]);
 
   useEffect(() => {
     reflectionEntries.forEach((entry, index) => {
       if (entry.hasData && entry.session && entry.tag) {
         console.info(
-          `[Reflection] ${selectedDayLabel} #${entry.tag}: ${entry.session.id} (${entry.session.durationMin}min)`,
+          `[Reflection] ${reflectionScopeLabel} #${entry.tag}: ${entry.session.id} (${entry.session.durationMin}min)`,
         );
         return;
       }
 
       if (entry.tag) {
-        console.info(`[Reflection] ${selectedDayLabel} #${entry.tag}: 記録なし`);
+        console.info(`[Reflection] ${reflectionScopeLabel} #${entry.tag}: 記録なし`);
         return;
       }
 
-      console.info(`[Reflection] ${selectedDayLabel} #タグ${index + 1}: 記録なし`);
+      console.info(`[Reflection] ${reflectionScopeLabel} #タグ${index + 1}: 記録なし`);
     });
-  }, [reflectionEntries, selectedDayLabel]);
+  }, [reflectionEntries]);
   const monthlyTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     sessions.forEach((session) => {
@@ -273,7 +275,7 @@ export default function HomePage() {
         <CardHeader className="space-y-1">
           <CardTitle>振り返りログ</CardTitle>
           <p className="text-sm text-muted-foreground">
-            {selectedDayLabel} のタグからランダムにピックアップした練習ログです。
+            全期間のタグからランダムにピックアップした練習ログです。
           </p>
         </CardHeader>
         <CardContent>
