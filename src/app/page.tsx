@@ -9,6 +9,7 @@ import dayjs, { type Dayjs } from "dayjs";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { SessionCard, SESSION_TYPE_LABELS, type Session } from "@/components/log/session-card";
 import { DS } from "@/lib/datastore";
 import { cn } from "@/lib/util/cn";
@@ -82,49 +83,71 @@ export default function HomePage() {
   const selectedDayLabel = dayjs(selectedDate).format("YYYY年M月D日");
   const monthLabel = currentMonth.format("YYYY年M月");
   const reflectionEntries = useMemo(() => {
-    const tagCounts = new Map<string, number>();
+    const tagSessions = new Map<string, Session[]>();
+
     selectedSessions.forEach((session) => {
       session.tags?.forEach((tag) => {
         const normalized = typeof tag === "string" ? tag.trim() : "";
         if (!normalized) return;
-        tagCounts.set(normalized, (tagCounts.get(normalized) ?? 0) + 1);
+        const list = tagSessions.get(normalized) ?? [];
+        list.push(session);
+        tagSessions.set(normalized, list);
       });
     });
 
-    const sortedTags = Array.from(tagCounts.entries()).sort((a, b) => {
-      if (a[1] === b[1]) {
-        return a[0].localeCompare(b[0]);
-      }
-      return b[1] - a[1];
-    });
+    const tags = Array.from(tagSessions.keys());
+    for (let i = tags.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [tags[i], tags[j]] = [tags[j], tags[i]];
+    }
 
     return Array.from({ length: 3 }, (_, index) => {
-      const entry = sortedTags[index];
-      if (!entry) {
+      const tag = tags[index];
+      if (!tag) {
         return {
           id: `placeholder-${index}`,
-          title: `#タグ${index + 1}`,
-          count: 0,
+          tag: null,
+          session: null,
           hasData: false,
         } as const;
       }
-      const [tag, count] = entry;
+
+      const sessionsForTag = tagSessions.get(tag) ?? [];
+      if (!sessionsForTag.length) {
+        return {
+          id: `placeholder-${tag}-${index}`,
+          tag,
+          session: null,
+          hasData: false,
+        } as const;
+      }
+
+      const randomSession = sessionsForTag[Math.floor(Math.random() * sessionsForTag.length)];
+
       return {
-        id: tag,
-        title: `#${tag}`,
-        count,
+        id: `${tag}-${randomSession.id}`,
+        tag,
+        session: randomSession,
         hasData: true,
       } as const;
     });
   }, [selectedSessions]);
 
   useEffect(() => {
-    reflectionEntries.forEach((entry) => {
-      if (entry.hasData) {
-        console.info(`[Reflection] ${selectedDayLabel} ${entry.title}: ${entry.count}件`);
-      } else {
-        console.info(`[Reflection] ${selectedDayLabel} ${entry.title}: 記録なし`);
+    reflectionEntries.forEach((entry, index) => {
+      if (entry.hasData && entry.session && entry.tag) {
+        console.info(
+          `[Reflection] ${selectedDayLabel} #${entry.tag}: ${entry.session.id} (${entry.session.durationMin}min)`,
+        );
+        return;
       }
+
+      if (entry.tag) {
+        console.info(`[Reflection] ${selectedDayLabel} #${entry.tag}: 記録なし`);
+        return;
+      }
+
+      console.info(`[Reflection] ${selectedDayLabel} #タグ${index + 1}: 記録なし`);
     });
   }, [reflectionEntries, selectedDayLabel]);
   const monthlyTotals = useMemo(() => {
@@ -249,24 +272,74 @@ export default function HomePage() {
       <Card>
         <CardHeader className="space-y-1">
           <CardTitle>振り返りログ</CardTitle>
-          <p className="text-sm text-muted-foreground">{selectedDayLabel} のタグ別サマリーです。</p>
+          <p className="text-sm text-muted-foreground">
+            {selectedDayLabel} のタグからランダムにピックアップした練習ログです。
+          </p>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-sm text-muted-foreground">読み込み中…</div>
           ) : (
-            <div className="space-y-2">
-              {reflectionEntries.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center justify-between rounded-md border border-dashed border-border/60 bg-muted/40 px-3 py-2"
-                >
-                  <div className="text-sm font-medium">{entry.title}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {entry.hasData ? `${entry.count} 件` : "記録なし"}
+            <div className="space-y-3">
+              {reflectionEntries.map((entry, index) => {
+                const tagLabel = entry.tag ? `#${entry.tag}` : `#タグ${index + 1}`;
+                if (!entry.hasData || !entry.session) {
+                  return (
+                    <div
+                      key={entry.id}
+                      className="space-y-2 rounded-md border border-dashed border-border/60 bg-muted/40 p-3"
+                    >
+                      <div className="text-sm font-semibold">{tagLabel}</div>
+                      <div className="text-sm text-muted-foreground">このタグのログはまだありません。</div>
+                    </div>
+                  );
+                }
+
+                const sessionDateTime = entry.session.startTime
+                  ? dayjs(`${entry.session.date} ${entry.session.startTime}`)
+                  : dayjs(entry.session.date);
+                const sessionDateLabel = entry.session.startTime
+                  ? sessionDateTime.format("YYYY/MM/DD HH:mm")
+                  : sessionDateTime.format("YYYY/MM/DD");
+
+                return (
+                  <div
+                    key={entry.id}
+                    className="space-y-2 rounded-md border border-dashed border-border/60 bg-muted/40 p-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-sm font-semibold">{tagLabel}</div>
+                      <div className="text-xs text-muted-foreground">{sessionDateLabel}</div>
+                    </div>
+                    <div className="space-y-2 rounded-md border border-border bg-background/80 p-3 text-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <span>
+                          {SESSION_TYPE_LABELS[entry.session.type] ?? entry.session.type} / {entry.session.durationMin} 分
+                        </span>
+                        {entry.session.startTime ? (
+                          <span>{sessionDateTime.format("HH:mm")}</span>
+                        ) : (
+                          <span>時間指定なし</span>
+                        )}
+                      </div>
+                      {entry.session.memo ? (
+                        <p className="whitespace-pre-wrap leading-relaxed text-muted-foreground">
+                          {entry.session.memo}
+                        </p>
+                      ) : null}
+                      {entry.session.tags?.length ? (
+                        <div className="flex flex-wrap gap-2">
+                          {entry.session.tags.map((tag, tagIndex) => (
+                            <Badge key={`${entry.session.id}-tag-${tagIndex}`} variant="outline">
+                              #{tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
