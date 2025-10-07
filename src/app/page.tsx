@@ -75,9 +75,58 @@ export default function HomePage() {
 
   const calendarDays = useMemo(() => createCalendarDays(currentMonth), [currentMonth]);
 
-  const selectedSessions = sessionsByDate.get(selectedDate) ?? [];
+  const selectedSessions = useMemo(
+    () => sessionsByDate.get(selectedDate) ?? [],
+    [sessionsByDate, selectedDate],
+  );
   const selectedDayLabel = dayjs(selectedDate).format("YYYY年M月D日");
   const monthLabel = currentMonth.format("YYYY年M月");
+  const reflectionEntries = useMemo(() => {
+    const tagCounts = new Map<string, number>();
+    selectedSessions.forEach((session) => {
+      session.tags?.forEach((tag) => {
+        const normalized = typeof tag === "string" ? tag.trim() : "";
+        if (!normalized) return;
+        tagCounts.set(normalized, (tagCounts.get(normalized) ?? 0) + 1);
+      });
+    });
+
+    const sortedTags = Array.from(tagCounts.entries()).sort((a, b) => {
+      if (a[1] === b[1]) {
+        return a[0].localeCompare(b[0]);
+      }
+      return b[1] - a[1];
+    });
+
+    return Array.from({ length: 3 }, (_, index) => {
+      const entry = sortedTags[index];
+      if (!entry) {
+        return {
+          id: `placeholder-${index}`,
+          title: `#タグ${index + 1}`,
+          count: 0,
+          hasData: false,
+        } as const;
+      }
+      const [tag, count] = entry;
+      return {
+        id: tag,
+        title: `#${tag}`,
+        count,
+        hasData: true,
+      } as const;
+    });
+  }, [selectedSessions]);
+
+  useEffect(() => {
+    reflectionEntries.forEach((entry) => {
+      if (entry.hasData) {
+        console.info(`[Reflection] ${selectedDayLabel} ${entry.title}: ${entry.count}件`);
+      } else {
+        console.info(`[Reflection] ${selectedDayLabel} ${entry.title}: 記録なし`);
+      }
+    });
+  }, [reflectionEntries, selectedDayLabel]);
   const monthlyTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     sessions.forEach((session) => {
@@ -194,6 +243,32 @@ export default function HomePage() {
               );
             })}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="space-y-1">
+          <CardTitle>振り返りログ</CardTitle>
+          <p className="text-sm text-muted-foreground">{selectedDayLabel} のタグ別サマリーです。</p>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-sm text-muted-foreground">読み込み中…</div>
+          ) : (
+            <div className="space-y-2">
+              {reflectionEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex items-center justify-between rounded-md border border-dashed border-border/60 bg-muted/40 px-3 py-2"
+                >
+                  <div className="text-sm font-medium">{entry.title}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {entry.hasData ? `${entry.count} 件` : "記録なし"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
