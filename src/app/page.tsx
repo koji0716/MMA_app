@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SessionCard, SESSION_TYPE_LABELS, type Session } from "@/components/log/session-card";
+import { MonthlyPolicyCard } from "@/components/home/monthly-policy-card";
 import { DS } from "@/lib/datastore";
 import { cn } from "@/lib/util/cn";
 
@@ -190,6 +191,7 @@ export default function HomePage() {
 
   return (
     <div className="space-y-4 p-4 md:p-6">
+      <MonthlyPolicyCard />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">ホーム</h1>
