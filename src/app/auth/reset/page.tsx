@@ -29,38 +29,40 @@ export default function PasswordResetPage() {
       return;
     }
 
-    if (session) {
-      setStatus("ready");
-      return;
-    }
-
     const currentUrl = new URL(window.location.href);
     const hashParams = new URLSearchParams(currentUrl.hash.replace(/^#/, ""));
     const accessToken = hashParams.get("access_token");
     const refreshToken = hashParams.get("refresh_token");
 
-    if (!accessToken || !refreshToken) {
-      setStatus("error");
-      setError("再設定リンクが無効です。ログイン画面から再度やり直してください。");
+    const hasRecoveryTokens = Boolean(accessToken && refreshToken);
+
+    if (hasRecoveryTokens) {
+      supabase.auth
+        .setSession({ access_token: accessToken ?? "", refresh_token: refreshToken ?? "" })
+        .then(({ error: sessionError }) => {
+          if (sessionError) {
+            setStatus("error");
+            setError(sessionError.message);
+            return;
+          }
+          setStatus("ready");
+          window.history.replaceState({}, document.title, currentUrl.pathname);
+        })
+        .catch((unknownError) => {
+          console.error("Supabase setSession error", unknownError);
+          setStatus("error");
+          setError("セッションの更新に失敗しました。");
+        });
       return;
     }
 
-    supabase.auth
-      .setSession({ access_token: accessToken, refresh_token: refreshToken })
-      .then(({ error: sessionError }) => {
-        if (sessionError) {
-          setStatus("error");
-          setError(sessionError.message);
-          return;
-        }
-        setStatus("ready");
-        window.history.replaceState({}, document.title, currentUrl.pathname);
-      })
-      .catch((unknownError) => {
-        console.error("Supabase setSession error", unknownError);
-        setStatus("error");
-        setError("セッションの更新に失敗しました。");
-      });
+    if (session) {
+      setStatus("ready");
+      return;
+    }
+
+    setStatus("error");
+    setError("再設定リンクが無効です。ログイン画面から再度やり直してください。");
   }, [session, supabaseAvailable]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
