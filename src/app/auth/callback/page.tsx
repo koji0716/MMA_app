@@ -19,6 +19,8 @@ export default function AuthCallbackPage() {
       return;
     }
 
+    const supabaseClient = supabase;
+
     let timeout: ReturnType<typeof setTimeout> | undefined;
 
     const currentUrl = new URL(window.location.href);
@@ -43,12 +45,12 @@ export default function AuthCallbackPage() {
 
     const exchangeSession = async () => {
       if (code) {
-        return supabase.auth.exchangeCodeForSession(code);
+        return supabaseClient.auth.exchangeCodeForSession(code);
       }
       if (!refreshToken) {
         return { error: new Error("リダイレクト URL にリフレッシュトークンが含まれていません。") };
       }
-      return supabase.auth.setSession({
+      return supabaseClient.auth.setSession({
         access_token: accessToken ?? "",
         refresh_token: refreshToken,
       });
