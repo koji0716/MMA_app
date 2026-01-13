@@ -59,12 +59,14 @@ export default function PasswordResetPage() {
               });
           if (!sessionError) {
             setStatus("ready");
+            setError(null);
             window.history.replaceState({}, document.title, currentUrl.pathname);
             return;
           }
           const { data } = await supabaseClient.auth.getSession();
           if (data.session) {
             setStatus("ready");
+            setError(null);
             window.history.replaceState({}, document.title, currentUrl.pathname);
             return;
           }
@@ -75,6 +77,7 @@ export default function PasswordResetPage() {
           const { data } = await supabaseClient.auth.getSession();
           if (data.session) {
             setStatus("ready");
+            setError(null);
             window.history.replaceState({}, document.title, currentUrl.pathname);
             return;
           }
@@ -89,6 +92,7 @@ export default function PasswordResetPage() {
 
     if (session) {
       setStatus("ready");
+      setError(null);
       return;
     }
 
