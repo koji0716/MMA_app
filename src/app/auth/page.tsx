@@ -10,7 +10,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type Mode = "signIn" | "signUp";
+type Mode = "signIn" | "signUp" | "reset";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -74,6 +74,13 @@ export default function AuthPage() {
         });
         if (signUpError) throw signUpError;
         setMessage("確認メールを送信しました。メール内のリンクからサインインを完了してください。");
+      } else if (mode === "reset") {
+        const redirectUrl = `${window.location.origin}/auth/reset`;
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: redirectUrl,
+        });
+        if (resetError) throw resetError;
+        setMessage("パスワード再設定メールを送信しました。メールのリンクを確認してください。");
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
@@ -98,7 +105,11 @@ export default function AuthPage() {
     <div className="mx-auto max-w-md space-y-4 p-4">
       <Card>
         <CardHeader className="space-y-1">
-          <CardTitle>メールアドレスで{mode === "signIn" ? "ログイン" : "新規登録"}</CardTitle>
+          <CardTitle>
+            {mode === "reset"
+              ? "パスワード再設定メールの送信"
+              : `メールアドレスで${mode === "signIn" ? "ログイン" : "新規登録"}`}
+          </CardTitle>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -113,18 +124,20 @@ export default function AuthPage() {
                 required
               />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="password">パスワード</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete={mode === "signIn" ? "current-password" : "new-password"}
-                value={password}
-                minLength={6}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-              />
-            </div>
+            {mode !== "reset" ? (
+              <div className="space-y-1">
+                <Label htmlFor="password">パスワード</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete={mode === "signIn" ? "current-password" : "new-password"}
+                  value={password}
+                  minLength={6}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                />
+              </div>
+            ) : null}
             {mode === "signUp" ? (
               <div className="space-y-1">
                 <Label htmlFor="passwordConfirm">パスワード（確認用）</Label>
@@ -152,20 +165,53 @@ export default function AuthPage() {
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
             <Button type="submit" disabled={loading} className="w-full">
-              {mode === "signIn" ? "ログイン" : "登録メールを送信"}
+              {mode === "signIn"
+                ? "ログイン"
+                : mode === "signUp"
+                  ? "登録メールを送信"
+                  : "再設定メールを送信"}
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={loading}
-              onClick={() => {
-                setMode(mode === "signIn" ? "signUp" : "signIn");
-                setError(null);
-                setMessage(null);
-              }}
-            >
-              {mode === "signIn" ? "新規登録はこちら" : "既にアカウントをお持ちの方はこちら"}
-            </Button>
+            {mode === "signIn" ? (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={loading}
+                  onClick={() => {
+                    setMode("signUp");
+                    setError(null);
+                    setMessage(null);
+                  }}
+                >
+                  新規登録はこちら
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={loading}
+                  onClick={() => {
+                    setMode("reset");
+                    setError(null);
+                    setMessage(null);
+                  }}
+                >
+                  パスワードを忘れた場合
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={loading}
+                onClick={() => {
+                  setMode("signIn");
+                  setError(null);
+                  setMessage(null);
+                }}
+              >
+                ログイン画面に戻る
+              </Button>
+            )}
             <Button type="button" variant="outline" asChild>
               <Link href="/">トップに戻る</Link>
             </Button>
