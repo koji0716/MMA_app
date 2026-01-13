@@ -29,6 +29,8 @@ export default function PasswordResetPage() {
       return;
     }
 
+    const supabaseClient = supabase;
+
     const currentUrl = new URL(window.location.href);
     const hashParams = new URLSearchParams(currentUrl.hash.replace(/^#/, ""));
     const accessToken = hashParams.get("access_token");
@@ -37,22 +39,39 @@ export default function PasswordResetPage() {
     const hasRecoveryTokens = Boolean(accessToken && refreshToken);
 
     if (hasRecoveryTokens) {
-      supabase.auth
-        .setSession({ access_token: accessToken ?? "", refresh_token: refreshToken ?? "" })
-        .then(({ error: sessionError }) => {
-          if (sessionError) {
-            setStatus("error");
-            setError(sessionError.message);
+      const applyRecoverySession = async () => {
+        try {
+          const { error: sessionError } = await supabaseClient.auth.setSession({
+            access_token: accessToken ?? "",
+            refresh_token: refreshToken ?? "",
+          });
+          if (!sessionError) {
+            setStatus("ready");
+            window.history.replaceState({}, document.title, currentUrl.pathname);
             return;
           }
-          setStatus("ready");
-          window.history.replaceState({}, document.title, currentUrl.pathname);
-        })
-        .catch((unknownError) => {
+          const { data } = await supabaseClient.auth.getSession();
+          if (data.session) {
+            setStatus("ready");
+            window.history.replaceState({}, document.title, currentUrl.pathname);
+            return;
+          }
+          setStatus("error");
+          setError(sessionError.message);
+        } catch (unknownError) {
           console.error("Supabase setSession error", unknownError);
+          const { data } = await supabaseClient.auth.getSession();
+          if (data.session) {
+            setStatus("ready");
+            window.history.replaceState({}, document.title, currentUrl.pathname);
+            return;
+          }
           setStatus("error");
           setError("セッションの更新に失敗しました。");
-        });
+        }
+      };
+
+      applyRecoverySession();
       return;
     }
 
