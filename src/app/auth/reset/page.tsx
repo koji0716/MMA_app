@@ -29,6 +29,8 @@ export default function PasswordResetPage() {
       return;
     }
 
+    const supabaseClient = supabase;
+
     const currentUrl = new URL(window.location.href);
     const hashParams = new URLSearchParams(currentUrl.hash.replace(/^#/, ""));
     const accessToken = hashParams.get("access_token");
@@ -39,7 +41,7 @@ export default function PasswordResetPage() {
     if (hasRecoveryTokens) {
       const applyRecoverySession = async () => {
         try {
-          const { error: sessionError } = await supabase.auth.setSession({
+          const { error: sessionError } = await supabaseClient.auth.setSession({
             access_token: accessToken ?? "",
             refresh_token: refreshToken ?? "",
           });
@@ -48,7 +50,7 @@ export default function PasswordResetPage() {
             window.history.replaceState({}, document.title, currentUrl.pathname);
             return;
           }
-          const { data } = await supabase.auth.getSession();
+          const { data } = await supabaseClient.auth.getSession();
           if (data.session) {
             setStatus("ready");
             window.history.replaceState({}, document.title, currentUrl.pathname);
@@ -58,7 +60,7 @@ export default function PasswordResetPage() {
           setError(sessionError.message);
         } catch (unknownError) {
           console.error("Supabase setSession error", unknownError);
-          const { data } = await supabase.auth.getSession();
+          const { data } = await supabaseClient.auth.getSession();
           if (data.session) {
             setStatus("ready");
             window.history.replaceState({}, document.title, currentUrl.pathname);
