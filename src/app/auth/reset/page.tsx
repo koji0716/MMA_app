@@ -33,18 +33,30 @@ export default function PasswordResetPage() {
 
     const currentUrl = new URL(window.location.href);
     const hashParams = new URLSearchParams(currentUrl.hash.replace(/^#/, ""));
+    const errorDescription =
+      currentUrl.searchParams.get("error_description") ?? hashParams.get("error_description");
+    if (errorDescription) {
+      setStatus("error");
+      setError(errorDescription);
+      return;
+    }
+
+    const code = currentUrl.searchParams.get("code");
     const accessToken = hashParams.get("access_token");
     const refreshToken = hashParams.get("refresh_token");
 
     const hasRecoveryTokens = Boolean(accessToken && refreshToken);
+    const hasRecoveryCode = Boolean(code);
 
-    if (hasRecoveryTokens) {
+    if (hasRecoveryCode || hasRecoveryTokens) {
       const applyRecoverySession = async () => {
         try {
-          const { error: sessionError } = await supabaseClient.auth.setSession({
-            access_token: accessToken ?? "",
-            refresh_token: refreshToken ?? "",
-          });
+          const { error: sessionError } = hasRecoveryCode
+            ? await supabaseClient.auth.exchangeCodeForSession(code ?? "")
+            : await supabaseClient.auth.setSession({
+                access_token: accessToken ?? "",
+                refresh_token: refreshToken ?? "",
+              });
           if (!sessionError) {
             setStatus("ready");
             window.history.replaceState({}, document.title, currentUrl.pathname);
