@@ -19,10 +19,14 @@ export default function AuthCallbackPage() {
       return;
     }
 
+    const supabaseClient = supabase;
+
     let timeout: ReturnType<typeof setTimeout> | undefined;
 
     const currentUrl = new URL(window.location.href);
-    const errorDescription = currentUrl.searchParams.get("error_description");
+    const hashParams = new URLSearchParams(currentUrl.hash.replace(/^#/, ""));
+    const errorDescription =
+      currentUrl.searchParams.get("error_description") ?? hashParams.get("error_description");
     if (errorDescription) {
       setStatus("error");
       setError(errorDescription);
@@ -30,14 +34,29 @@ export default function AuthCallbackPage() {
     }
 
     const code = currentUrl.searchParams.get("code");
-    if (!code) {
+    const accessToken = hashParams.get("access_token");
+    const refreshToken = hashParams.get("refresh_token");
+
+    if (!code && !accessToken) {
       setStatus("error");
       setError("リダイレクト URL に認証コードが含まれていません。");
       return;
     }
 
-    supabase.auth
-      .exchangeCodeForSession(code)
+    const exchangeSession = async () => {
+      if (code) {
+        return supabaseClient.auth.exchangeCodeForSession(code);
+      }
+      if (!refreshToken) {
+        return { error: new Error("リダイレクト URL にリフレッシュトークンが含まれていません。") };
+      }
+      return supabaseClient.auth.setSession({
+        access_token: accessToken ?? "",
+        refresh_token: refreshToken,
+      });
+    };
+
+    exchangeSession()
       .then(({ error: exchangeError }) => {
         if (exchangeError) {
           setStatus("error");
